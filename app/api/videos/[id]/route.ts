@@ -2,11 +2,16 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getGridFSBucket } from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
+    const params = await Promise.resolve(context.params)
+    const { id } = params
     const bucket = await getGridFSBucket()
 
-    const downloadStream = bucket.openDownloadStream(new ObjectId(params.id))
+    const downloadStream = bucket.openDownloadStream(new ObjectId(id))
 
     const chunks: Buffer[] = []
 

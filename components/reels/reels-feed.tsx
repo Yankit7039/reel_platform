@@ -6,7 +6,6 @@ import VideoPlayer from "./video-player"
 import CommentModal from "./comment-modal"
 import { useAuth } from "@/components/providers/auth-provider"
 import { toast } from "sonner"
-import BottomNav from "@/components/navigation/bottom-nav"
 
 interface ReelsFeedProps {
   category?: string
@@ -170,7 +169,7 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
 
   if (loading) {
     return (
-      <div className="h-[100dvh] flex items-center justify-center">
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     )
@@ -178,21 +177,21 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
 
   if (reels.length === 0) {
     return (
-      <div className="h-[100dvh] flex items-center justify-center">
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
         <p className="text-gray-500 text-lg">No reels found</p>
       </div>
     )
   }
 
   return (
-    <>
+    <div className="h-[calc(100vh-8rem)]">
       <div
         ref={containerRef}
-        className="h-[100dvh] overflow-y-scroll snap-y snap-mandatory no-scrollbar pb-16"
+        className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar"
         onScroll={handleScroll}
       >
         {reels.map((reel, index) => (
-          <div key={reel._id} className="h-[100dvh] snap-start">
+          <div key={reel._id} className="h-full snap-start">
             <VideoPlayer
               reel={reel}
               isActive={index === currentIndex}
@@ -215,7 +214,6 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
           onCommentAdded={handleCommentAdded}
         />
       )}
-      <BottomNav />
-    </>
+    </div>
   )
 }

@@ -1,11 +1,13 @@
 "use client"
 
 import { useAuth } from "@/components/providers/auth-provider"
+import BottomNav from "@/components/navigation/bottom-nav"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import type { Reel } from "@/lib/types"
 import { Button } from "@/components/ui/button"
-import { LogOut, Trash2 } from "lucide-react"
+import { LogOut, Trash2, User, Mail } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function ProfilePage() {
   const { user, loading, logout } = useAuth()
@@ -64,8 +66,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      <div className="h-screen flex items-center justify-center bg-black">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     )
   }
@@ -74,66 +76,138 @@ export default function ProfilePage() {
     return null
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.2
+      }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: { duration: 0.4 }
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-20 h-20 bg-gray-300 rounded-full flex items-center justify-center">
-                <span className="text-2xl font-bold text-gray-600">{user.username.charAt(0).toUpperCase()}</span>
-              </div>
+    <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black">
+      <motion.div 
+        className="container max-w-lg mx-auto px-4 py-8 space-y-6"
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
+        {/* Profile Info */}
+        <motion.div 
+          className="bg-gray-800/40 backdrop-blur-lg rounded-xl p-8 border border-gray-700/50 shadow-xl"
+          variants={itemVariants}
+        >
+          <motion.div 
+            className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <span className="text-3xl font-bold text-white">
+              {user.username.charAt(0).toUpperCase()}
+            </span>
+          </motion.div>
+          <h1 className="text-2xl font-bold text-white text-center mb-8">Profile</h1>
+          <div className="space-y-6">
+            <motion.div 
+              className="flex items-center space-x-3 p-4 bg-gray-700/30 rounded-lg"
+              whileHover={{ scale: 1.02 }}
+            >
+              <User className="text-blue-400" size={20} />
               <div>
-                <h1 className="text-2xl font-bold">{user.username}</h1>
-                <p className="text-gray-600">{user.email}</p>
-                <p className="text-sm text-gray-500 mt-1">{userReels.length} reels</p>
+                <label className="text-sm text-gray-400">Username</label>
+                <p className="text-white font-medium">{user.username}</p>
               </div>
+            </motion.div>
+            <motion.div 
+              className="flex items-center space-x-3 p-4 bg-gray-700/30 rounded-lg"
+              whileHover={{ scale: 1.02 }}
+            >
+              <Mail className="text-blue-400" size={20} />
+              <div>
+                <label className="text-sm text-gray-400">Email</label>
+                <p className="text-white font-medium">{user.email}</p>
+              </div>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                variant="destructive" 
+                className="w-full flex items-center justify-center gap-2 py-6 text-lg font-medium"
+                onClick={handleLogout}
+              >
+                <LogOut size={20} />
+                Logout
+              </Button>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* User's Reels */}
+        <motion.div 
+          className="bg-gray-800/40 backdrop-blur-lg rounded-xl p-8 border border-gray-700/50 shadow-xl"
+          variants={itemVariants}
+        >
+          <h2 className="text-2xl font-bold text-white mb-6">Your Reels</h2>
+          {loadingReels ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
             </div>
-            <Button onClick={handleLogout} variant="outline">
-              <LogOut size={16} className="mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <h2 className="text-xl font-semibold mb-4">My Reels</h2>
-
-        {loadingReels ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
-          </div>
-        ) : userReels.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">You haven't uploaded any reels yet</p>
-            <Button onClick={() => router.push("/upload")}>Upload Your First Reel</Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {userReels.map((reel) => (
-              <div key={reel._id} className="relative group">
-                <div className="aspect-[9/16] bg-gray-200 rounded-lg overflow-hidden">
-                  <video src={`/api/videos/${reel.videoId}`} className="w-full h-full object-cover" muted />
-                </div>
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                  <Button onClick={() => handleDeleteReel(reel._id!)} variant="destructive" size="sm">
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-                <div className="mt-2">
-                  <p className="font-medium text-sm truncate">{reel.title}</p>
-                  <p className="text-xs text-gray-500">{reel.category}</p>
-                  <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                    <span>{reel.likes.length} likes</span>
-                    <span>{reel.comments.length} comments</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+          ) : userReels.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4">
+              {userReels.map((reel, index) => (
+                <motion.div
+                  key={reel._id}
+                  className="relative group"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <video 
+                    src={`/api/videos/${reel.videoId}`}
+                    className="w-full h-48 object-cover rounded-lg shadow-lg"
+                  />
+                  {reel._id && (
+                    <motion.button
+                      onClick={() => handleDeleteReel(reel._id!)}
+                      className="absolute top-2 right-2 p-3 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <Trash2 size={16} className="text-white" />
+                    </motion.button>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <motion.p 
+              className="text-gray-400 text-center py-12 text-lg"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              No reels uploaded yet
+            </motion.p>
+          )}
+        </motion.div>
+      </motion.div>
+      <BottomNav />
+    </main>
   )
 }

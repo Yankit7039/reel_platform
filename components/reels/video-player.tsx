@@ -107,17 +107,17 @@ export default function VideoPlayer({ reel, isActive, onLike, onDislike, onComme
 
   return (
     <div
-      className="relative h-[100dvh] w-full bg-black"
+      className="relative h-full w-full bg-black"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       {/* Video Container with proper aspect ratio */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative w-full h-full md:w-[400px]">
+        <div className="relative w-full h-full">
           <video
             ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-contain"
             src={`/api/videos/${reel.videoId}`}
             loop
             muted

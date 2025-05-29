@@ -36,22 +36,21 @@ export default function BottomNav() {
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background border-t h-16 px-4 md:hidden">
-      <div className="flex items-center justify-around h-full max-w-md mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 h-16 z-[100]">
+      <div className="flex items-center justify-between h-full px-6 max-w-lg mx-auto">
         {navItems.map((item) => (
           <button
             key={item.href}
             onClick={() => router.push(item.href)}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 h-full",
-              "transition-colors duration-200",
+              "flex flex-col items-center justify-center gap-1 w-16",
               item.active
-                ? "text-primary"
-                : "text-muted-foreground hover:text-primary"
+                ? "text-blue-500"
+                : "text-gray-400 hover:text-white"
             )}
           >
-            <item.icon size={24} />
-            <span className="text-xs mt-1">{item.label}</span>
+            <item.icon size={20} />
+            <span className="text-xs font-medium">{item.label}</span>
           </button>
         ))}
       </div>

@@ -2,10 +2,10 @@
 
 import { useAuth } from "@/components/providers/auth-provider"
 import ReelsFeed from "@/components/reels/reels-feed"
-import BottomNav from "@/components/navigation/bottom-nav"
 import { CATEGORIES } from "@/lib/types"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import BottomNav from "@/components/navigation/bottom-nav"
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -26,14 +26,14 @@ export default function Home() {
   }
 
   return (
-    <div className="relative">
+    <main className="min-h-screen bg-black pb-16">
       {/* Category Filter */}
-      <div className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm z-40 p-4">
+      <div className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-sm z-40 px-4 py-3 border-b border-gray-800">
         <div className="flex space-x-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setSelectedCategory("all")}
             className={`px-4 py-2 rounded-full whitespace-nowrap ${
-              selectedCategory === "all" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+              selectedCategory === "all" ? "bg-blue-600 text-white" : "bg-white/10 text-white/70"
             }`}
           >
             All
@@ -43,7 +43,7 @@ export default function Home() {
               key={category}
               onClick={() => setSelectedCategory(category)}
               className={`px-4 py-2 rounded-full whitespace-nowrap ${
-                selectedCategory === category ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+                selectedCategory === category ? "bg-blue-600 text-white" : "bg-white/10 text-white/70"
               }`}
             >
               {category}
@@ -53,11 +53,12 @@ export default function Home() {
       </div>
 
       {/* Reels Feed */}
-      <div className="pt-20 pb-20">
+      <div className="mt-16">
         <ReelsFeed category={selectedCategory} />
       </div>
 
+      {/* Bottom Navigation */}
       <BottomNav />
-    </div>
+    </main>
   )
 }
