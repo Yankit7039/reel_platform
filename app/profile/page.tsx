@@ -181,7 +181,16 @@ export default function ProfilePage() {
                   <video 
                     src={`/api/videos/${reel.videoId}`}
                     className="w-full h-48 object-cover rounded-lg shadow-lg"
+                    preload="metadata"
+                    poster={reel.thumbnail || ''}
+                    playsInline
                   />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/60 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <h3 className="text-white text-sm font-medium truncate">{reel.title}</h3>
+                      <p className="text-gray-300 text-xs truncate">{reel.description}</p>
+                    </div>
+                  </div>
                   {reel._id && (
                     <motion.button
                       onClick={() => handleDeleteReel(reel._id!)}

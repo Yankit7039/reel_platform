@@ -22,40 +22,74 @@ export default function SignupForm() {
     setLoading(true)
     setError("")
 
-    const success = await signup(username, email, password)
-    if (success) {
-      router.push("/")
-    } else {
-      setError("Failed to create account")
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Store token and redirect
+        localStorage.setItem("token", data.token)
+        router.push("/")
+      } else {
+        // Show error message
+        setError(data.error || "Failed to create account")
+      }
+    } catch (err) {
+      setError("An error occurred. Please try again.")
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
-      <div>
+      <div className="space-y-2">
         <Input
           type="text"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
+          className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-400"
+        />
+        <p className="text-xs text-gray-400">Only letters, numbers, and underscores allowed</p>
+      </div>
+      <div>
+        <Input 
+          type="email" 
+          placeholder="Email" 
+          value={email} 
+          onChange={(e) => setEmail(e.target.value)} 
+          required
+          className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-400"
         />
       </div>
-      <div>
-        <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      </div>
-      <div>
+      <div className="space-y-2">
         <Input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          className="bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-400"
         />
+        <p className="text-xs text-gray-400">Must be at least 6 characters long</p>
       </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
-      <Button type="submit" disabled={loading} className="w-full">
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
+          <p className="text-red-500 text-sm">{error}</p>
+        </div>
+      )}
+      <Button 
+        type="submit" 
+        disabled={loading} 
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+      >
         {loading ? "Creating account..." : "Sign Up"}
       </Button>
     </form>
