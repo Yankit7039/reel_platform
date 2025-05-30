@@ -6,7 +6,7 @@ import { useRef, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Heart, MessageCircle, Share, ThumbsDown } from "lucide-react"
 import type { Reel } from "@/lib/types"
-import { useAuth } from "@/components/providers/auth-provider"
+import { useSession } from "next-auth/react"
 
 interface VideoPlayerProps {
   reel: Reel
@@ -15,16 +15,26 @@ interface VideoPlayerProps {
   onDislike: () => void
   onComment: () => void
   onShare: () => void
+  isLiked: boolean
+  isDisliked: boolean
 }
 
-export default function VideoPlayer({ reel, isActive, onLike, onDislike, onComment, onShare }: VideoPlayerProps) {
+export default function VideoPlayer({ 
+  reel, 
+  isActive, 
+  onLike, 
+  onDislike, 
+  onComment, 
+  onShare,
+  isLiked,
+  isDisliked 
+}: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [swipeDirection, setSwipeDirection] = useState<"like" | "dislike" | null>(null)
   const [startX, setStartX] = useState(0)
   const [currentX, setCurrentX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [showActionFeedback, setShowActionFeedback] = useState<"like" | "dislike" | "comment" | "share" | null>(null)
-  const { user } = useAuth()
 
   useEffect(() => {
     if (videoRef.current) {
@@ -101,9 +111,6 @@ export default function VideoPlayer({ reel, isActive, onLike, onDislike, onComme
     setShowActionFeedback(action)
     setTimeout(() => setShowActionFeedback(null), 1000)
   }
-
-  const isLiked = user && reel.likes.includes(user._id!)
-  const isDisliked = user && reel.dislikes.includes(user._id!)
 
   return (
     <div

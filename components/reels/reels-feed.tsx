@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import type { Reel } from "@/lib/types"
 import VideoPlayer from "./video-player"
 import CommentModal from "./comment-modal"
-import { useAuth } from "@/components/providers/auth-provider"
+import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 
 interface ReelsFeedProps {
@@ -18,7 +18,7 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
   const [commentModalOpen, setCommentModalOpen] = useState(false)
   const [selectedReel, setSelectedReel] = useState<Reel | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const { user } = useAuth()
+  const { data: session } = useSession()
 
   useEffect(() => {
     fetchReels()
@@ -52,28 +52,26 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
   }
 
   const handleLike = async (reelId: string) => {
-    if (!user) {
+    if (!session?.user?.id) {
       toast.error("Please sign in to like reels")
       return
     }
 
     try {
-      const token = localStorage.getItem("token")
       const response = await fetch(`/api/reels/${reelId}/like`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (response.ok) {
         const data = await response.json()
         setReels((prev) =>
           prev.map((reel) =>
-            reel._id === reelId
+            reel.id === reelId
               ? {
                   ...reel,
-                  likes: data.isLiked ? [...reel.likes, user._id!] : reel.likes.filter((id) => id !== user._id),
-                  dislikes: reel.dislikes.filter((id) => id !== user._id),
-                }
+                  likes: data.isLiked ? [...reel.likes, session.user.id] : reel.likes.filter((id) => id !== session.user.id),
+                  dislikes: reel.dislikes.filter((id) => id !== session.user.id),
+                } as Reel
               : reel,
           ),
         )
@@ -85,30 +83,28 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
   }
 
   const handleDislike = async (reelId: string) => {
-    if (!user) {
+    if (!session?.user?.id) {
       toast.error("Please sign in to dislike reels")
       return
     }
 
     try {
-      const token = localStorage.getItem("token")
       const response = await fetch(`/api/reels/${reelId}/dislike`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (response.ok) {
         const data = await response.json()
         setReels((prev) =>
           prev.map((reel) =>
-            reel._id === reelId
+            reel.id === reelId
               ? {
                   ...reel,
                   dislikes: data.isDisliked
-                    ? [...reel.dislikes, user._id!]
-                    : reel.dislikes.filter((id) => id !== user._id),
-                  likes: reel.likes.filter((id) => id !== user._id),
-                }
+                    ? [...reel.dislikes, session.user.id]
+                    : reel.dislikes.filter((id) => id !== session.user.id),
+                  likes: reel.likes.filter((id) => id !== session.user.id),
+                } as Reel
               : reel,
           ),
         )
@@ -120,7 +116,7 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
   }
 
   const handleComment = (reel: Reel) => {
-    if (!user) {
+    if (!session?.user) {
       toast.error("Please sign in to comment")
       return
     }
@@ -131,7 +127,7 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
   const handleCommentAdded = (newComment: any) => {
     setReels((prev) =>
       prev.map((reel) =>
-        reel._id === selectedReel?._id
+        reel.id === selectedReel?.id
           ? {
               ...reel,
               comments: [...reel.comments, newComment],
@@ -145,11 +141,11 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
   const handleCommentUpdated = (commentId: string, newText: string) => {
     setReels((prev) =>
       prev.map((reel) =>
-        reel._id === selectedReel?._id
+        reel.id === selectedReel?.id
           ? {
               ...reel,
               comments: reel.comments.map((comment) =>
-                comment._id === commentId
+                comment.id === commentId
                   ? { ...comment, text: newText }
                   : comment
               ),
@@ -162,10 +158,10 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
   const handleCommentDeleted = (commentId: string) => {
     setReels((prev) =>
       prev.map((reel) =>
-        reel._id === selectedReel?._id
+        reel.id === selectedReel?.id
           ? {
               ...reel,
-              comments: reel.comments.filter((comment) => comment._id !== commentId),
+              comments: reel.comments.filter((comment) => comment.id !== commentId),
             }
           : reel
       )
@@ -199,48 +195,57 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
 
   if (loading) {
     return (
-      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     )
   }
 
   if (reels.length === 0) {
     return (
-      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
-        <p className="text-gray-500 text-lg">No reels found</p>
+      <div className="h-screen flex flex-col items-center justify-center text-center px-4">
+        <h2 className="text-2xl font-bold text-gray-200 mb-2">No reels found</h2>
+        <p className="text-gray-400">
+          {category === "all"
+            ? "Be the first to upload a reel!"
+            : `No reels found in the ${category} category.`}
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)]">
-      <div
-        ref={containerRef}
-        className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar"
-        onScroll={handleScroll}
-      >
-        {reels.map((reel, index) => (
-          <div key={reel._id} className="h-full snap-start">
-            <VideoPlayer
-              reel={reel}
-              isActive={index === currentIndex}
-              onLike={() => handleLike(reel._id!)}
-              onDislike={() => handleDislike(reel._id!)}
-              onComment={() => handleComment(reel)}
-              onShare={() => handleShare(reel._id!)}
-            />
-          </div>
-        ))}
-      </div>
+    <div
+      ref={containerRef}
+      className="h-screen overflow-y-auto snap-y snap-mandatory"
+      onScroll={handleScroll}
+    >
+      {reels.map((reel, index) => (
+        <div
+          key={reel.id}
+          className="h-screen snap-start relative flex items-center justify-center bg-black"
+        >
+          <VideoPlayer
+            reel={reel}
+            isActive={index === currentIndex}
+            onLike={() => handleLike(reel.id!)}
+            onDislike={() => handleDislike(reel.id!)}
+            onComment={() => handleComment(reel)}
+            onShare={() => handleShare(reel.id!)}
+            isLiked={session?.user ? reel.likes.includes(session.user.id) : false}
+            isDisliked={session?.user ? reel.dislikes.includes(session.user.id) : false}
+          />
+        </div>
+      ))}
+
       {selectedReel && (
         <CommentModal
-          reel={selectedReel}
           isOpen={commentModalOpen}
           onClose={() => {
             setCommentModalOpen(false)
             setSelectedReel(null)
           }}
+          reel={selectedReel}
           onCommentAdded={handleCommentAdded}
           onCommentUpdated={handleCommentUpdated}
           onCommentDeleted={handleCommentDeleted}

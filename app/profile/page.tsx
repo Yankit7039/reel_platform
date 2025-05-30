@@ -1,11 +1,10 @@
 "use client"
 
-import { useAuth } from "@/components/providers/auth-provider"
+import { useSession, signOut } from "next-auth/react"
 import BottomNav from "@/components/navigation/bottom-nav"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import type { Reel } from "@/lib/types"
-import { CATEGORIES } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { LogOut, Trash2, User, Mail, Grid, Film, Calendar, Edit } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -15,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
 export default function ProfilePage() {
-  const { user, loading, logout } = useAuth()
+  const { data: session, status } = useSession()
   const [userReels, setUserReels] = useState<Reel[]>([])
   const [loadingReels, setLoadingReels] = useState(true)
   const [selectedReel, setSelectedReel] = useState<string | null>(null)
@@ -24,25 +23,20 @@ export default function ProfilePage() {
   const { toast } = useToast()
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (status === "unauthenticated") {
       router.push("/auth")
       return
     }
-    if (user?._id) {
+    if (session?.user?.id) {
       fetchUserReels()
     }
-  }, [loading, user, router])
+  }, [status, session, router])
 
   const fetchUserReels = async () => {
-    if (!user?._id) return
+    if (!session?.user?.id) return
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`/api/reels?userId=${user._id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      const response = await fetch(`/api/reels?userId=${session.user.id}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -66,17 +60,15 @@ export default function ProfilePage() {
     if (!confirm("Are you sure you want to delete this reel?")) return
 
     try {
-      const token = localStorage.getItem("token")
       const response = await fetch(`/api/reels/${reelId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      setUserReels((prev) => prev.filter((reel) => reel._id !== reelId))
+      setUserReels((prev) => prev.filter((reel) => reel.id !== reelId))
       toast({
         title: "Success",
         description: "Reel deleted successfully.",
@@ -93,12 +85,10 @@ export default function ProfilePage() {
 
   const handleEditReel = async (reelId: string, updatedData: Partial<Reel>) => {
     try {
-      const token = localStorage.getItem("token")
       const response = await fetch(`/api/reels/${reelId}`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
         },
         body: JSON.stringify(updatedData),
       })
@@ -109,7 +99,7 @@ export default function ProfilePage() {
 
       const updatedReel = await response.json()
       setUserReels(prev => prev.map(reel => 
-        reel._id === reelId ? { ...reel, ...updatedReel } : reel
+        reel.id === reelId ? { ...reel, ...updatedReel } : reel
       ))
       setEditingReel(null)
       toast({
@@ -127,10 +117,10 @@ export default function ProfilePage() {
   }
 
   const handleLogout = () => {
-    logout()
+    signOut({ callbackUrl: "/auth" })
   }
 
-  if (loading) {
+  if (status === "loading") {
     return (
       <div className="h-screen flex items-center justify-center bg-black">
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
@@ -138,7 +128,7 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user) {
+  if (!session?.user) {
     return null
   }
 
@@ -183,27 +173,31 @@ export default function ProfilePage() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center">
-                <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-                  {user.username.charAt(0).toUpperCase()}
-                </span>
-              </div>
+              {session.user.image ? (
+                <img 
+                  src={session.user.image} 
+                  alt={session.user.name || "Profile"} 
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center">
+                  <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                    {(session.user.name || session.user.email || "U").charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
             </motion.div>
 
             <div className="text-center space-y-4">
-              <h1 className="text-3xl font-bold text-white">{user.username}</h1>
+              <h1 className="text-3xl font-bold text-white">{session.user.name}</h1>
               <div className="flex flex-wrap justify-center gap-4">
                 <div className="flex items-center space-x-2 text-gray-300">
                   <Mail className="w-4 h-4" />
-                  <span>{user.email}</span>
+                  <span>{session.user.email}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-300">
                   <Film className="w-4 h-4" />
                   <span>{userReels.length} Reels</span>
-                </div>
-                <div className="flex items-center space-x-2 text-gray-300">
-                  <Calendar className="w-4 h-4" />
-                  <span>Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Recently"}</span>
                 </div>
               </div>
             </div>
@@ -247,7 +241,7 @@ export default function ProfilePage() {
               <AnimatePresence>
                 {userReels.map((reel, index) => (
                   <motion.div
-                    key={reel._id}
+                    key={reel.id}
                     className="group relative aspect-[9/16] bg-gray-800/50 rounded-xl overflow-hidden backdrop-blur-sm border border-white/10"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -259,7 +253,7 @@ export default function ProfilePage() {
                       src={`/api/videos/${reel.videoId}`}
                       className="w-full h-full object-cover"
                       preload="metadata"
-                      onClick={() => reel._id && setSelectedReel(reel._id)}
+                      onClick={() => reel.id && setSelectedReel(reel.id)}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2">
@@ -277,7 +271,7 @@ export default function ProfilePage() {
                             size="sm"
                             variant="destructive"
                             className="bg-red-500/20 hover:bg-red-500/30"
-                            onClick={() => reel._id && handleDeleteReel(reel._id)}
+                            onClick={() => reel.id && handleDeleteReel(reel.id)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -330,7 +324,7 @@ export default function ProfilePage() {
                 Cancel
               </Button>
               <Button 
-                onClick={() => editingReel?._id && handleEditReel(editingReel._id, {
+                onClick={() => editingReel?.id && handleEditReel(editingReel.id, {
                   title: editingReel.title,
                   description: editingReel.description
                 })}

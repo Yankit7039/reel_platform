@@ -1,143 +1,70 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from "react"
+import { SessionProvider, useSession } from "next-auth/react"
+import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 
 interface User {
-  _id: string
-  username: string
-  email: string
-  bio?: string
-  createdAt?: string
+  id?: string
+  name?: string | null
+  email?: string | null
+  image?: string | null
 }
 
-interface AuthContextType {
+const AuthContext = createContext<{
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<boolean>
-  signup: (username: string, email: string, password: string) => Promise<boolean>
-  logout: () => void
-  updateUser: (user: User) => void
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+}>({
+  user: null,
+  loading: true,
+})
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  return (
+    <SessionProvider>
+      <AuthContextProvider>{children}</AuthContextProvider>
+    </SessionProvider>
+  )
+}
+
+function AuthContextProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession()
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      if (!token) {
-        setLoading(false)
-        return
-      }
-
-      const response = await fetch("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUser(data.user)
-      } else {
-        localStorage.removeItem("token")
-      }
-    } catch (error) {
-      console.error("Auth check failed:", error)
-      localStorage.removeItem("token")
-    } finally {
+    if (status !== "loading") {
       setLoading(false)
     }
-  }
+  }, [status])
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        localStorage.setItem("token", data.token)
-        setUser(data.user)
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error("Login failed:", error)
-      return false
-    }
-  }
-
-  const signup = async (username: string, email: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        localStorage.setItem("token", data.token)
-        setUser(data.user)
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error("Signup failed:", error)
-      return false
-    }
-  }
-
-  const logout = () => {
-    localStorage.removeItem("token")
-    setUser(null)
-    router.push("/auth")
-  }
-
-  const updateUser = (updatedUser: User) => {
-    setUser(updatedUser)
-  }
-
-  // Protect auth page from authenticated users
+  // Handle auth redirects
   useEffect(() => {
-    if (!loading && user && pathname === "/auth") {
-      router.push("/")
+    if (!loading) {
+      if (session?.user && pathname === "/auth") {
+        router.push("/")
+      } else if (!session?.user && pathname !== "/auth" && !pathname.startsWith("/api/")) {
+        router.push("/auth")
+      }
     }
-  }, [loading, user, pathname, router])
-
-  // Protect authenticated routes
-  useEffect(() => {
-    if (!loading && !user && pathname !== "/auth" && !pathname.startsWith("/api/")) {
-      router.push("/auth")
-    }
-  }, [loading, user, pathname, router])
+  }, [loading, session, pathname, router])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user: session?.user || null,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context

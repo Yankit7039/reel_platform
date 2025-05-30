@@ -2,7 +2,9 @@
 const nextConfig = {
   serverExternalPackages: ['mongodb'],
   experimental: {
-    serverActions: true
+    serverActions: {
+      allowedOrigins: ["*"]
+    }
   },
   eslint: {
     ignoreDuringBuilds: true,

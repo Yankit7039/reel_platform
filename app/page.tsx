@@ -3,7 +3,7 @@
 import { useAuth } from "@/components/providers/auth-provider"
 import ReelsFeed from "@/components/reels/reels-feed"
 import { CATEGORIES } from "@/lib/types"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import BottomNav from "@/components/navigation/bottom-nav"
 
@@ -11,6 +11,12 @@ export default function Home() {
   const { user, loading } = useAuth()
   const [selectedCategory, setSelectedCategory] = useState("all")
   const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/auth")
+    }
+  }, [user, loading, router])
 
   if (loading) {
     return (
@@ -21,7 +27,6 @@ export default function Home() {
   }
 
   if (!user) {
-    router.push("/auth")
     return null
   }
 

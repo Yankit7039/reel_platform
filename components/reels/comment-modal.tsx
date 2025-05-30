@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Send, MessageCircle, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import type { Reel, Comment } from "@/lib/types"
-import { useAuth } from "@/components/providers/auth-provider"
+import { useSession } from "next-auth/react"
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -38,21 +38,19 @@ export default function CommentModal({
   const [loading, setLoading] = useState(false)
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [editText, setEditText] = useState("")
-  const { user } = useAuth()
+  const { data: session } = useSession()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!comment.trim() || !user) return
+    if (!comment.trim() || !session?.user) return
 
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`/api/reels/${reel._id}/comment`, {
+      const response = await fetch(`/api/reels/${reel.id}/comment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ text: comment.trim() }),
       })
@@ -85,22 +83,20 @@ export default function CommentModal({
   }
 
   const handleEditComment = async (commentId: string) => {
-    if (!editText.trim() || !user) return
+    if (!editText.trim() || !session?.user) return
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`/api/reels/${reel._id}/comment/${commentId}`, {
+      const response = await fetch(`/api/reels/${reel.id}/comment/${commentId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ text: editText.trim() }),
       })
 
       if (response.ok) {
         const updatedComments = reel.comments.map(comment => 
-          comment._id === commentId 
+          comment.id === commentId 
             ? { ...comment, text: editText.trim() }
             : comment
         )
@@ -131,19 +127,15 @@ export default function CommentModal({
   }
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!user) return
+    if (!session?.user) return
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`/api/reels/${reel._id}/comment/${commentId}`, {
+      const response = await fetch(`/api/reels/${reel.id}/comment/${commentId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       })
 
       if (response.ok) {
-        reel.comments = reel.comments.filter(comment => comment._id !== commentId)
+        reel.comments = reel.comments.filter(comment => comment.id !== commentId)
         onCommentDeleted(commentId)
         toast({
           title: "Comment deleted!",
@@ -200,76 +192,48 @@ export default function CommentModal({
                 className="flex flex-col items-center justify-center py-12 text-gray-400"
               >
                 <MessageCircle className="w-12 h-12 mb-4 text-gray-500" />
-                <p className="text-center">No comments yet. Be the first to comment!</p>
+                <p>No comments yet. Be the first to comment!</p>
               </motion.div>
             ) : (
-              reel.comments.map((comment, index) => (
+              reel.comments.map((comment) => (
                 <motion.div
-                  key={comment._id}
+                  key={comment.id}
                   variants={commentVariants}
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  transition={{ delay: index * 0.1 }}
-                  className="flex space-x-3 px-4"
+                  className="flex gap-3 px-4"
                 >
-                  <Avatar className="w-8 h-8 ring-2 ring-blue-500/20">
-                    <AvatarFallback className="text-xs bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                      {comment.username.charAt(0).toUpperCase()}
+                  <Avatar className="w-8 h-8 border border-gray-700">
+                    <AvatarFallback className="bg-gray-800 text-gray-400">
+                      {comment.username[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div className="bg-gray-800/50 backdrop-blur rounded-2xl px-4 py-3 flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-semibold text-sm text-white">{comment.username}</p>
-                          {user && comment.userId === user._id && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40 bg-gray-800 border-gray-700">
-                                <DropdownMenuItem
-                                  className="text-blue-400 focus:text-blue-400 focus:bg-blue-400/10"
-                                  onClick={() => {
-                                    setEditingCommentId(comment._id!)
-                                    setEditText(comment.text)
-                                  }}
-                                >
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-red-400 focus:text-red-400 focus:bg-red-400/10"
-                                  onClick={() => handleDeleteComment(comment._id!)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
-                        {editingCommentId === comment._id ? (
-                          <div className="mt-2 space-y-2">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-200">
+                          {comment.username}
+                        </p>
+                        {editingCommentId === comment.id ? (
+                          <div className="mt-1 space-y-2">
                             <Input
                               value={editText}
                               onChange={(e) => setEditText(e.target.value)}
-                              className="bg-gray-700/50 border-gray-600 text-white"
+                              className="bg-gray-800/50 border-gray-700"
+                              placeholder="Edit your comment..."
                             />
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
-                                onClick={() => handleEditComment(comment._id!)}
-                                className="bg-blue-500 hover:bg-blue-600"
+                                onClick={() => handleEditComment(comment.id || "")}
+                                disabled={!editText.trim()}
                               >
                                 Save
                               </Button>
                               <Button
                                 size="sm"
-                                variant="ghost"
+                                variant="outline"
                                 onClick={() => {
                                   setEditingCommentId(null)
                                   setEditText("")
@@ -280,18 +244,45 @@ export default function CommentModal({
                             </div>
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-300 mt-1">{comment.text}</p>
+                          <p className="text-sm text-gray-300">{comment.text}</p>
                         )}
                       </div>
+                      {session?.user?.id === comment.userId && !editingCommentId && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 hover:bg-gray-800"
+                            >
+                              <MoreVertical className="h-4 w-4 text-gray-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-32 bg-gray-900 border-gray-800"
+                          >
+                            <DropdownMenuItem
+                              className="text-gray-300 focus:text-gray-200 focus:bg-gray-800"
+                              onClick={() => {
+                                setEditingCommentId(comment.id || null)
+                                setEditText(comment.text)
+                              }}
+                            >
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-400 focus:text-red-300 focus:bg-red-900/20"
+                              onClick={() => handleDeleteComment(comment.id || "")}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 ml-2">
-                      {new Date(comment.createdAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
                   </div>
                 </motion.div>
               ))
@@ -299,25 +290,33 @@ export default function CommentModal({
           </AnimatePresence>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex space-x-2 pt-4 px-4 border-t border-gray-800">
-          <div className="relative flex-1">
+        <form onSubmit={handleSubmit} className="border-t border-gray-800 pt-4">
+          <div className="flex gap-2">
             <Input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Add a comment..."
-              className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 pr-12"
-              disabled={loading}
+              placeholder="Write a comment..."
+              className="flex-1 bg-gray-800/50 border-gray-700"
+              disabled={loading || !session?.user}
             />
             <Button 
               type="submit" 
-              size="icon" 
-              className="absolute right-1 top-1 bg-blue-500 hover:bg-blue-600 transition-colors"
-              disabled={loading || !comment.trim()}
+              size="icon"
+              disabled={loading || !comment.trim() || !session?.user}
+              className="bg-blue-600 hover:bg-blue-700"
             >
-              <Send className="w-4 h-4" />
-              <span className="sr-only">Send comment</span>
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </Button>
           </div>
+          {!session?.user && (
+            <p className="mt-2 text-sm text-gray-400">
+              Please sign in to comment.
+            </p>
+          )}
         </form>
       </DialogContent>
     </Dialog>

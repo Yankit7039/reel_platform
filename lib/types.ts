@@ -1,5 +1,12 @@
 export interface User {
-  _id?: string
+  id: string
+  name?: string | null
+  email?: string | null
+  image?: string | null
+}
+
+export interface DBUser {
+  _id: string
   username: string
   email: string
   password: string
@@ -9,7 +16,7 @@ export interface User {
 }
 
 export interface Reel {
-  _id?: string
+  id?: string
   userId: string
   username: string
   title: string
@@ -24,13 +31,29 @@ export interface Reel {
 }
 
 export interface Comment {
-  _id?: string
+  id?: string
   userId: string
   username: string
   text: string
   createdAt: Date
 }
 
-export const CATEGORIES = ["Comedy", "Dance", "Travel", "Food", "Fitness", "Fashion"] as const
+export const CATEGORIES = [
+  "Comedy",
+  "Music",
+  "Dance",
+  "Food",
+  "Travel",
+  "Gaming",
+  // "Education",
+  // "Sports",
+  // "Fashion",
+  // "Beauty",
+  // "Technology",
+  // "Animals",
+  // "Art",
+  // "DIY",
+  // "Fitness",
+] as const
 
 export type Category = (typeof CATEGORIES)[number]
