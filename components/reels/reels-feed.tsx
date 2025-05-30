@@ -142,6 +142,36 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
     toast.success("Comment added successfully")
   }
 
+  const handleCommentUpdated = (commentId: string, newText: string) => {
+    setReels((prev) =>
+      prev.map((reel) =>
+        reel._id === selectedReel?._id
+          ? {
+              ...reel,
+              comments: reel.comments.map((comment) =>
+                comment._id === commentId
+                  ? { ...comment, text: newText }
+                  : comment
+              ),
+            }
+          : reel
+      )
+    )
+  }
+
+  const handleCommentDeleted = (commentId: string) => {
+    setReels((prev) =>
+      prev.map((reel) =>
+        reel._id === selectedReel?._id
+          ? {
+              ...reel,
+              comments: reel.comments.filter((comment) => comment._id !== commentId),
+            }
+          : reel
+      )
+    )
+  }
+
   const handleShare = async (reelId: string) => {
     const shareUrl = `${window.location.origin}/reel/${reelId}`
     
@@ -212,6 +242,8 @@ export default function ReelsFeed({ category = "all" }: ReelsFeedProps) {
             setSelectedReel(null)
           }}
           onCommentAdded={handleCommentAdded}
+          onCommentUpdated={handleCommentUpdated}
+          onCommentDeleted={handleCommentDeleted}
         />
       )}
     </div>

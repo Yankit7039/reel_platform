@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      console.log("Attempting to connect to MongoDB...")
       const client = await clientPromise
       console.log("MongoDB connected successfully")
       
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       const users = db.collection("users")
 
       // Check if user already exists
+      console.log("Checking for existing user...")
       const existingUser = await users.findOne({
         $or: [
           { email: email.toLowerCase() },
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Hash password and create user
+      console.log("Hashing password...")
       const hashedPassword = await hashPassword(password)
       const newUser = {
         username,
@@ -85,6 +88,7 @@ export async function POST(request: NextRequest) {
         createdAt: new Date(),
       }
 
+      console.log("Creating new user...")
       const result = await users.insertOne(newUser)
       console.log("User created successfully:", result.insertedId.toString())
 
@@ -95,6 +99,7 @@ export async function POST(request: NextRequest) {
         bio: "",
       }
 
+      console.log("Generating token...")
       const token = generateToken(user._id)
 
       return NextResponse.json({ token, user })
@@ -103,18 +108,44 @@ export async function POST(request: NextRequest) {
         console.error("MongoDB operation failed:", {
           code: error.code,
           message: error.message,
-          command: error.errInfo?.command
+          command: error.errInfo?.command,
+          connectionInfo: {
+            uri: process.env.MONGODB_URI ? "URI exists" : "URI missing",
+            env: process.env.NODE_ENV
+          }
         })
         if (error.code === 11000) { // Duplicate key error
           return NextResponse.json({ error: "Username or email already exists" }, { status: 400 })
         }
       } else {
-        console.error("Database operation failed:", error)
+        console.error("Database operation failed:", {
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          } : error,
+          env: {
+            nodeEnv: process.env.NODE_ENV,
+            hasMongoUri: !!process.env.MONGODB_URI,
+            hasJwtSecret: !!process.env.JWT_SECRET
+          }
+        })
       }
       return NextResponse.json({ error: "Failed to create user" }, { status: 500 })
     }
   } catch (error) {
-    console.error("Signup error:", error)
+    console.error("Signup error:", {
+      error: error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : error,
+      env: {
+        nodeEnv: process.env.NODE_ENV,
+        hasMongoUri: !!process.env.MONGODB_URI,
+        hasJwtSecret: !!process.env.JWT_SECRET
+      }
+    })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
