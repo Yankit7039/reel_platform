@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
       { _id: new ObjectId(decoded.userId) },
       { 
         projection: { 
-          password: 0,
           _id: 1,
           username: 1,
           email: 1,

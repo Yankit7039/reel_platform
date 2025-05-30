@@ -65,12 +65,21 @@ export async function POST(request: NextRequest) {
 
       // Check if user already exists
       console.log("Checking for existing user...")
-      const existingUser = await users.findOne({
-        $or: [
-          { email: email.toLowerCase() },
-          { username: username }
-        ]
-      })
+      const existingUser = await users.findOne(
+        {
+          $or: [
+            { email: email.toLowerCase() },
+            { username: username }
+          ]
+        },
+        {
+          projection: {
+            _id: 1,
+            email: 1,
+            username: 1
+          }
+        }
+      )
 
       if (existingUser) {
         const field = existingUser.email.toLowerCase() === email.toLowerCase() ? "email" : "username"
@@ -100,6 +109,7 @@ export async function POST(request: NextRequest) {
         username,
         email: email.toLowerCase(),
         bio: "",
+        createdAt: newUser.createdAt.toISOString()
       }
 
       console.log("Generating token...")

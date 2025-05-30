@@ -32,7 +32,20 @@ export async function POST(request: NextRequest) {
 
     // Find user
     console.log("Looking up user:", email)
-    const user = await users.findOne({ email: email.toLowerCase() })
+    const user = await users.findOne(
+      { email: email.toLowerCase() },
+      { 
+        projection: { 
+          _id: 1,
+          username: 1,
+          email: 1,
+          password: 1,
+          bio: 1,
+          createdAt: 1
+        } 
+      }
+    )
+
     if (!user) {
       console.error("User not found:", email)
       return Response.json({ error: "Invalid credentials" }, { status: 401 })
@@ -54,6 +67,7 @@ export async function POST(request: NextRequest) {
       username: user.username,
       email: user.email,
       bio: user.bio || "",
+      createdAt: user.createdAt || new Date().toISOString()
     }
 
     // Create response with token cookie
