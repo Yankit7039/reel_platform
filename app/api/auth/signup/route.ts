@@ -1,7 +1,10 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import clientPromise from "@/lib/mongodb"
 import { hashPassword, generateToken } from "@/lib/auth"
 import { MongoServerError } from "mongodb"
+
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +14,7 @@ export async function POST(request: NextRequest) {
       body = await request.json()
     } catch (e) {
       console.error("Failed to parse request body:", e)
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+      return Response.json({ error: "Invalid request body" }, { status: 400 })
     }
 
     const { username, email, password } = body
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!username || !email || !password) {
       console.error("Missing required fields:", { username: !!username, email: !!email, password: !!password })
-      return NextResponse.json({ 
+      return Response.json({ 
         error: "Missing required fields",
         details: {
           username: !username ? "Username is required" : null,
@@ -36,20 +39,20 @@ export async function POST(request: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       console.error("Invalid email format:", email)
-      return NextResponse.json({ error: "Invalid email format" }, { status: 400 })
+      return Response.json({ error: "Invalid email format" }, { status: 400 })
     }
 
     // Validate username format (alphanumeric and underscore only)
     const usernameRegex = /^[a-zA-Z0-9_]+$/
     if (!usernameRegex.test(username)) {
       console.error("Invalid username format:", username)
-      return NextResponse.json({ error: "Username can only contain letters, numbers, and underscores" }, { status: 400 })
+      return Response.json({ error: "Username can only contain letters, numbers, and underscores" }, { status: 400 })
     }
 
     // Validate password strength
     if (password.length < 6) {
       console.error("Password too short")
-      return NextResponse.json({ error: "Password must be at least 6 characters long" }, { status: 400 })
+      return Response.json({ error: "Password must be at least 6 characters long" }, { status: 400 })
     }
 
     try {
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
       if (existingUser) {
         const field = existingUser.email.toLowerCase() === email.toLowerCase() ? "email" : "username"
         console.error(`User already exists with ${field}:`, field === "email" ? email : username)
-        return NextResponse.json({ 
+        return Response.json({ 
           error: `${field === 'email' ? 'Email' : 'Username'} is already taken` 
         }, { status: 400 })
       }
@@ -102,7 +105,20 @@ export async function POST(request: NextRequest) {
       console.log("Generating token...")
       const token = generateToken(user._id)
 
-      return NextResponse.json({ token, user })
+      // Create response with token cookie
+      const headers = new Headers()
+      headers.append(
+        "Set-Cookie",
+        `token=${token}; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}; Path=/`
+      )
+
+      return Response.json(
+        { token, user },
+        { 
+          headers,
+          status: 200 
+        }
+      )
     } catch (error) {
       if (error instanceof MongoServerError) {
         console.error("MongoDB operation failed:", {
@@ -115,7 +131,7 @@ export async function POST(request: NextRequest) {
           }
         })
         if (error.code === 11000) { // Duplicate key error
-          return NextResponse.json({ error: "Username or email already exists" }, { status: 400 })
+          return Response.json({ error: "Username or email already exists" }, { status: 400 })
         }
       } else {
         console.error("Database operation failed:", {
@@ -131,7 +147,7 @@ export async function POST(request: NextRequest) {
           }
         })
       }
-      return NextResponse.json({ error: "Failed to create user" }, { status: 500 })
+      return Response.json({ error: "Failed to create user" }, { status: 500 })
     }
   } catch (error) {
     console.error("Signup error:", {
@@ -146,6 +162,6 @@ export async function POST(request: NextRequest) {
         hasJwtSecret: !!process.env.JWT_SECRET
       }
     })
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return Response.json({ error: "Internal server error" }, { status: 500 })
   }
 }

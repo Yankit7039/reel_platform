@@ -1,11 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['mongodb'],
-  experimental: {},
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
+  experimental: {
+    serverActions: true
   },
   eslint: {
     ignoreDuringBuilds: true,

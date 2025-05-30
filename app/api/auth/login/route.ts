@@ -1,6 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import clientPromise from "@/lib/mongodb"
 import { comparePassword, generateToken } from "@/lib/auth"
+
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +13,7 @@ export async function POST(request: NextRequest) {
       body = await request.json()
     } catch (e) {
       console.error("Failed to parse request body:", e)
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+      return Response.json({ error: "Invalid request body" }, { status: 400 })
     }
 
     const { email, password } = body
@@ -18,7 +21,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!email || !password) {
       console.error("Missing credentials:", { email: !!email, password: !!password })
-      return NextResponse.json({ error: "Missing email or password" }, { status: 400 })
+      return Response.json({ error: "Missing email or password" }, { status: 400 })
     }
 
     // Connect to MongoDB
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
     const user = await users.findOne({ email: email.toLowerCase() })
     if (!user) {
       console.error("User not found:", email)
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      return Response.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
     // Verify password
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
     const isValidPassword = await comparePassword(password, user.password)
     if (!isValidPassword) {
       console.error("Invalid password for user:", email)
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      return Response.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
     // Generate token
@@ -53,8 +56,21 @@ export async function POST(request: NextRequest) {
       bio: user.bio || "",
     }
 
+    // Create response with token cookie
+    const headers = new Headers()
+    headers.append(
+      "Set-Cookie",
+      `token=${token}; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}; Path=/`
+    )
+
     console.log("Login successful for user:", email)
-    return NextResponse.json({ token, user: userResponse })
+    return Response.json(
+      { token, user: userResponse },
+      { 
+        headers,
+        status: 200 
+      }
+    )
   } catch (error) {
     console.error("Login error:", {
       error: error instanceof Error ? {
@@ -68,6 +84,6 @@ export async function POST(request: NextRequest) {
         hasJwtSecret: !!process.env.JWT_SECRET
       }
     })
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return Response.json({ error: "Internal server error" }, { status: 500 })
   }
 }

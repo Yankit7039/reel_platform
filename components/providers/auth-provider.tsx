@@ -1,16 +1,23 @@
 "use client"
 
-import type React from "react"
+import React, { createContext, useContext, useEffect, useState } from "react"
+import { useRouter, usePathname } from "next/navigation"
 
-import { createContext, useContext, useEffect, useState } from "react"
-import type { User } from "@/lib/types"
+interface User {
+  _id: string
+  username: string
+  email: string
+  bio?: string
+  createdAt?: string
+}
 
 interface AuthContextType {
   user: User | null
+  loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   signup: (username: string, email: string, password: string) => Promise<boolean>
   logout: () => void
-  loading: boolean
+  updateUser: (user: User) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -18,6 +25,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     checkAuth()
@@ -32,12 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const response = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       })
 
       if (response.ok) {
-        const userData = await response.json()
-        setUser(userData)
+        const data = await response.json()
+        setUser(data.user)
       } else {
         localStorage.removeItem("token")
       }
@@ -57,10 +68,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        const { token, user } = await response.json()
-        localStorage.setItem("token", token)
-        setUser(user)
+        localStorage.setItem("token", data.token)
+        setUser(data.user)
         return true
       }
       return false
@@ -78,10 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, email, password }),
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        const { token, user } = await response.json()
-        localStorage.setItem("token", token)
-        setUser(user)
+        localStorage.setItem("token", data.token)
+        setUser(data.user)
         return true
       }
       return false
@@ -94,9 +107,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem("token")
     setUser(null)
+    router.push("/auth")
   }
 
-  return <AuthContext.Provider value={{ user, login, signup, logout, loading }}>{children}</AuthContext.Provider>
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser)
+  }
+
+  // Protect auth page from authenticated users
+  useEffect(() => {
+    if (!loading && user && pathname === "/auth") {
+      router.push("/")
+    }
+  }, [loading, user, pathname, router])
+
+  // Protect authenticated routes
+  useEffect(() => {
+    if (!loading && !user && pathname !== "/auth" && !pathname.startsWith("/api/")) {
+      router.push("/auth")
+    }
+  }, [loading, user, pathname, router])
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

@@ -12,9 +12,7 @@ const options = {
   retryReads: true,
   connectTimeoutMS: 10000,
   socketTimeoutMS: 45000,
-  serverSelectionTimeoutMS: 5000,
-  keepAlive: true,
-  keepAliveInitialDelay: 300000 // 5 minutes
+  serverSelectionTimeoutMS: 5000
 }
 
 let client: MongoClient

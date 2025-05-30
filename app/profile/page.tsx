@@ -26,22 +26,30 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!loading && !user) {
       router.push("/auth")
+      return
+    }
+    if (user?._id) {
+      fetchUserReels()
     }
   }, [loading, user, router])
 
-  useEffect(() => {
-    if (user) {
-      fetchUserReels()
-    }
-  }, [user])
-
   const fetchUserReels = async () => {
+    if (!user?._id) return
+
     try {
-      const response = await fetch(`/api/reels?userId=${user?._id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setUserReels(data)
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/api/reels?userId=${user._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
+      
+      const data = await response.json()
+      setUserReels(data)
     } catch (error) {
       console.error("Failed to fetch user reels:", error)
       toast({
@@ -64,13 +72,15 @@ export default function ProfilePage() {
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      if (response.ok) {
-        setUserReels((prev) => prev.filter((reel) => reel._id !== reelId))
-        toast({
-          title: "Success",
-          description: "Reel deleted successfully.",
-        })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
+
+      setUserReels((prev) => prev.filter((reel) => reel._id !== reelId))
+      toast({
+        title: "Success",
+        description: "Reel deleted successfully.",
+      })
     } catch (error) {
       console.error("Failed to delete reel:", error)
       toast({
@@ -93,17 +103,19 @@ export default function ProfilePage() {
         body: JSON.stringify(updatedData),
       })
 
-      if (response.ok) {
-        const updatedReel = await response.json()
-        setUserReels(prev => prev.map(reel => 
-          reel._id === reelId ? { ...reel, ...updatedReel } : reel
-        ))
-        setEditingReel(null)
-        toast({
-          title: "Success",
-          description: "Reel updated successfully.",
-        })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
+
+      const updatedReel = await response.json()
+      setUserReels(prev => prev.map(reel => 
+        reel._id === reelId ? { ...reel, ...updatedReel } : reel
+      ))
+      setEditingReel(null)
+      toast({
+        title: "Success",
+        description: "Reel updated successfully.",
+      })
     } catch (error) {
       console.error("Failed to update reel:", error)
       toast({
@@ -116,7 +128,6 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     logout()
-    router.push("/auth")
   }
 
   if (loading) {
@@ -192,7 +203,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center space-x-2 text-gray-300">
                   <Calendar className="w-4 h-4" />
-                  <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                  <span>Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Recently"}</span>
                 </div>
               </div>
             </div>
@@ -248,151 +259,88 @@ export default function ProfilePage() {
                       src={`/api/videos/${reel.videoId}`}
                       className="w-full h-full object-cover"
                       preload="metadata"
-                      poster={reel.thumbnail || ''}
-                      playsInline
-                      onClick={() => {
-                        if (reel._id) {
-                          setSelectedReel(selectedReel === reel._id ? null : reel._id)
-                        }
-                      }}
+                      onClick={() => reel._id && setSelectedReel(reel._id)}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 className="text-white text-lg font-medium line-clamp-1">{reel.title}</h3>
-                        <p className="text-gray-300 text-sm line-clamp-2 mt-1">{reel.description}</p>
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="text-sm text-gray-400">
-                            {new Date(reel.createdAt).toLocaleDateString()}
-                          </span>
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setEditingReel(reel)
-                              }}
-                              className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteReel(reel._id!)
-                              }}
-                              className="bg-red-500/20 hover:bg-red-500/30 text-red-400"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2">
+                        <h3 className="text-white font-semibold truncate">{reel.title}</h3>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-white/10 border-white/20 hover:bg-white/20"
+                            onClick={() => setEditingReel(reel)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="bg-red-500/20 hover:bg-red-500/30"
+                            onClick={() => reel._id && handleDeleteReel(reel._id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
-                    {selectedReel === reel._id && (
-                      <video 
-                        src={`/api/videos/${reel.videoId}`}
-                        className="absolute inset-0 w-full h-full object-cover z-10"
-                        autoPlay
-                        controls
-                        playsInline
-                      />
-                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
             </div>
           ) : (
-            <motion.div 
-              className="text-center py-16 bg-gray-800/20 rounded-2xl border border-gray-700/50"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Film className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-              <p className="text-gray-400 text-lg mb-4">No reels uploaded yet</p>
-              <Button 
+            <div className="text-center py-12">
+              <p className="text-gray-400">You haven't uploaded any reels yet.</p>
+              <Button
+                className="mt-4 bg-blue-600 hover:bg-blue-700"
                 onClick={() => router.push("/upload")}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
               >
                 Upload Your First Reel
               </Button>
-            </motion.div>
+            </div>
           )}
         </motion.div>
       </motion.div>
-      
-      {/* Edit Reel Dialog */}
-      <Dialog open={!!editingReel} onOpenChange={() => setEditingReel(null)}>
-        <DialogContent className="bg-gray-900/95 backdrop-blur-lg border border-gray-800">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Reel</DialogTitle>
-          </DialogHeader>
-          {editingReel && (
-            <form onSubmit={(e) => {
-              e.preventDefault()
-              handleEditReel(editingReel._id!, {
-                title: editingReel.title,
-                description: editingReel.description,
-                category: editingReel.category
-              })
-            }} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Title</label>
-                <Input
-                  value={editingReel.title}
-                  onChange={(e) => setEditingReel({ ...editingReel, title: e.target.value })}
-                  className="bg-gray-800/50 border-gray-700 text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Description</label>
-                <Textarea
-                  value={editingReel.description}
-                  onChange={(e) => setEditingReel({ ...editingReel, description: e.target.value })}
-                  className="bg-gray-800/50 border-gray-700 text-white min-h-[100px]"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Category</label>
-                <select
-                  value={editingReel.category}
-                  onChange={(e) => setEditingReel({ ...editingReel, category: e.target.value })}
-                  className="w-full p-2.5 bg-gray-800/50 border border-gray-700 rounded-md text-white"
-                  required
-                >
-                  {CATEGORIES.map((category: string) => (
-                    <option key={category} value={category} className="bg-gray-800">
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setEditingReel(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-blue-500 hover:bg-blue-600"
-                >
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <BottomNav />
+
+      {/* Edit Reel Dialog */}
+      <Dialog open={!!editingReel} onOpenChange={() => setEditingReel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Reel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Input
+                placeholder="Title"
+                value={editingReel?.title || ""}
+                onChange={(e) => setEditingReel(prev => prev ? { ...prev, title: e.target.value } : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Description"
+                value={editingReel?.description || ""}
+                onChange={(e) => setEditingReel(prev => prev ? { ...prev, description: e.target.value } : null)}
+              />
+            </div>
+            <div className="pt-4 flex justify-end gap-4">
+              <Button variant="outline" onClick={() => setEditingReel(null)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => editingReel?._id && handleEditReel(editingReel._id, {
+                  title: editingReel.title,
+                  description: editingReel.description
+                })}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
