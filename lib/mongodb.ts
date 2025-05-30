@@ -11,8 +11,10 @@ const options = {
   retryWrites: true,
   retryReads: true,
   connectTimeoutMS: 10000,
-  socketTimeoutMS: 45000, // Close sockets that are inactive for 45 seconds
-  serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds of server selection
+  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 5000,
+  keepAlive: true,
+  keepAliveInitialDelay: 300000 // 5 minutes
 }
 
 let client: MongoClient
@@ -24,33 +26,32 @@ declare global {
 
 const connectToDatabase = async () => {
   try {
+    console.log("Attempting to connect to MongoDB...")
     const client = new MongoClient(uri, options)
     await client.connect()
-    await client.db("admin").command({ ping: 1 }) // Test the connection
-    console.log("Successfully connected to MongoDB Atlas")
+    await client.db("admin").command({ ping: 1 })
+    console.log("Successfully connected to MongoDB")
     return client
   } catch (error) {
-    console.error("MongoDB Atlas connection error:", {
+    console.error("MongoDB connection error:", {
       error: error instanceof Error ? {
         message: error.message,
         name: error.name,
         stack: error.stack
       } : error,
-      uri: uri.replace(/mongodb(\+srv)?:\/\/[^:]+:[^@]+@/, 'mongodb$1://*:*@')
+      uri: process.env.MONGODB_URI ? "URI exists" : "URI missing",
+      env: process.env.NODE_ENV || "unknown"
     })
     throw error
   }
 }
 
 if (process.env.NODE_ENV === "development") {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
   if (!global._mongoClientPromise) {
     global._mongoClientPromise = connectToDatabase()
   }
   clientPromise = global._mongoClientPromise
 } else {
-  // In production mode, it's best to not use a global variable.
   client = new MongoClient(uri, options)
   clientPromise = connectToDatabase()
 }

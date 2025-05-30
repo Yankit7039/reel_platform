@@ -7,20 +7,19 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export default function SignupForm() {
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
   const { signup } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError("")
 
     try {
       const response = await fetch("/api/auth/signup", {
@@ -32,15 +31,18 @@ export default function SignupForm() {
       const data = await response.json()
 
       if (response.ok) {
-        // Store token and redirect
+        // Store token and update auth context
         localStorage.setItem("token", data.token)
-        router.push("/")
+        toast.success("Account created successfully!")
+        
+        // Force a hard navigation to ensure proper state reset
+        window.location.href = "/"
       } else {
-        // Show error message
-        setError(data.error || "Failed to create account")
+        toast.error(data.error || "Failed to create account")
       }
     } catch (err) {
-      setError("An error occurred. Please try again.")
+      console.error("Signup error:", err)
+      toast.error("An error occurred. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -80,11 +82,6 @@ export default function SignupForm() {
         />
         <p className="text-xs text-gray-400">Must be at least 6 characters long</p>
       </div>
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
-          <p className="text-red-500 text-sm">{error}</p>
-        </div>
-      )}
       <Button 
         type="submit" 
         disabled={loading} 
