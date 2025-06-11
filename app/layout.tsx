@@ -8,7 +8,7 @@ import { Toaster } from "sonner"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Reels Platform",
+  title: "ReelNest",
   description: "Share your moments with the world",
 }
 
